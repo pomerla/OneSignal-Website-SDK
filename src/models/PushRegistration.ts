@@ -38,6 +38,7 @@ export class PushRegistration implements Serializable {
     this.devicePlatform = this.getDevicePlatformKind();
     this.deviceModel = navigator.platform;
     this.sdkVersion = Environment.version().toString();
+    this.deliveryPlatform = this.getDeliveryPlatform();
     // Unimplemented properties are appId, deliveryPlatform, subscriptionState, and subscription
   }
 
@@ -52,6 +53,10 @@ export class PushRegistration implements Serializable {
     } else {
       return DevicePlatformKind.Desktop;
     }
+  }
+
+  isSafari(): boolean {
+    return Browser.safari && window.safari !== undefined && window.safari.pushNotification !== undefined;
   }
 
   getBrowserOperatingSystem(): string {
@@ -109,6 +114,26 @@ export class PushRegistration implements Serializable {
     return "Unknown";
   }
 
+  getDeliveryPlatform(): DeliveryPlatformKind {
+    if (this.isSafari()) {
+      return DeliveryPlatformKind.Safari;
+    } else if (Browser.firefox) {
+      return DeliveryPlatformKind.Firefox;
+    } else {
+      return DeliveryPlatformKind.ChromeLike;
+    }
+  }
+
+  static createFromPushSubscription(appId: Uuid, rawPushSubscription: RawPushSubscription): PushRegistration {
+    const pushRegistration = new PushRegistration();
+    pushRegistration.appId = appId;
+    pushRegistration.subscriptionState = rawPushSubscription ?
+      SubscriptionStateKind.Subscribed :
+      SubscriptionStateKind.NotSubscribed;
+    pushRegistration.subscription = rawPushSubscription;
+    return pushRegistration;
+  }
+
   serialize() {
     const serializedBundle: any = {
       /* Old Parameters */
@@ -118,7 +143,7 @@ export class PushRegistration implements Serializable {
       device_os: this.browserVersion,
       sdk: this.sdkVersion,
       notification_types: this.subscriptionState,
-      /* New Paramters */
+      /* New Parameters */
       delivery_platform: this.deliveryPlatform,
       browser_name: this.browserName,
       browser_version: this.browserVersion,

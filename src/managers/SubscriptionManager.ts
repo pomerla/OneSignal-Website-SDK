@@ -49,7 +49,7 @@ export class SubscriptionManager {
     this.config = config;
   }
 
-  isSafari(): boolean {
+  static isSafari(): boolean {
     return Browser.safari && window.safari !== undefined && window.safari.pushNotification !== undefined;
   }
 
@@ -87,7 +87,7 @@ export class SubscriptionManager {
           throw new PushPermissionNotGrantedError(PushPermissionNotGrantedErrorReason.Blocked);
         }
 
-        if (this.isSafari()) {
+        if (SubscriptionManager.isSafari()) {
           rawPushSubscription = await this.subscribeSafari();
         } else {
           rawPushSubscription = await this.subscribeFcmFromPage();
@@ -144,21 +144,7 @@ export class SubscriptionManager {
   }
 
   public async registerSubscriptionWithOneSignal(pushSubscription: RawPushSubscription): Promise<Subscription> {
-    let pushRegistration = new PushRegistration();
-
-    pushRegistration.appId = this.config.appId;
-
-    if (this.isSafari()) {
-      pushRegistration.deliveryPlatform = DeliveryPlatformKind.Safari;
-    } else if (Browser.firefox) {
-      pushRegistration.deliveryPlatform = DeliveryPlatformKind.Firefox;
-    } else {
-      pushRegistration.deliveryPlatform = DeliveryPlatformKind.ChromeLike;
-    }
-
-    pushRegistration.subscriptionState = SubscriptionStateKind.Subscribed;
-    pushSubscription = RawPushSubscription.deserialize(pushSubscription);
-    pushRegistration.subscription = pushSubscription;
+    const pushRegistration = PushRegistration.createFromPushSubscription(this.config.appId, pushSubscription);
 
     let newDeviceId: Uuid;
     if (await this.isAlreadyRegisteredWithOneSignal()) {
@@ -182,10 +168,10 @@ export class SubscriptionManager {
       Event.trigger(OneSignal.EVENTS.REGISTERED);
     }
 
-    const subscription = new Subscription();
+    // Get the existing subscription settings to prevent overriding opt out
+    const subscription = await Database.getSubscription();
     subscription.deviceId = newDeviceId;
-    subscription.optedOut = false;
-    if (this.isSafari()) {
+    if (SubscriptionManager.isSafari()) {
       subscription.subscriptionToken = pushSubscription.safariDeviceToken;
     } else {
       subscription.subscriptionToken = pushSubscription.w3cEndpoint.toString();
@@ -312,7 +298,7 @@ export class SubscriptionManager {
     return await this.subscribeFcmVapidOrLegacyKey(workerRegistration);
   }
 
-  private async subscribeFcmFromWorker(): Promise<RawPushSubscription> {
+  public async subscribeFcmFromWorker(): Promise<RawPushSubscription> {
     /*
       We're running inside of the service worker.
 
@@ -340,10 +326,8 @@ export class SubscriptionManager {
      */
     const pushPermission = await self.registration.pushManager.permissionState({ userVisibleOnly: true });
     if (pushPermission === 'denied') {
-      OneSignal._sessionInitAlreadyRunning = false;
       throw new PushPermissionNotGrantedError(PushPermissionNotGrantedErrorReason.Blocked);
     } else if (pushPermission === 'prompt') {
-      OneSignal._sessionInitAlreadyRunning = false;
       throw new PushPermissionNotGrantedError(PushPermissionNotGrantedErrorReason.Default);
     }
 
@@ -454,11 +438,10 @@ export class SubscriptionManager {
     // Actually subscribe the user to push
     newPushSubscription = await workerRegistration.pushManager.subscribe(options);
 
-    const pushSubscriptionDetails = new RawPushSubscription();
-    pushSubscriptionDetails.setFromW3cSubscription(newPushSubscription);
+    const pushSubscriptionDetails = RawPushSubscription.setFromW3cSubscription(newPushSubscription);
     if (existingPushSubscription) {
-      pushSubscriptionDetails.existingW3cPushSubscription = new RawPushSubscription();
-      pushSubscriptionDetails.existingW3cPushSubscription.setFromW3cSubscription(existingPushSubscription);
+      pushSubscriptionDetails.existingW3cPushSubscription =
+        RawPushSubscription.setFromW3cSubscription(existingPushSubscription);
     }
     return pushSubscriptionDetails;
   }
