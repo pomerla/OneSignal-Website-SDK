@@ -838,19 +838,11 @@ export class ServiceWorker {
     if (!deviceIdExists && !hasNewSubscription) {
       await Database.remove('Ids', 'userId');
       await Database.remove('Ids', 'registrationId');
+    } else {
+      // rawPushSubscription may be null if no push subscription was retrieved; in this case, the user will be
+      // marked as not subscribed
+      await context.subscriptionManager.registerSubscriptionWithOneSignal(rawPushSubscription);
     }
-
-    // rawPushSubscription may be null if no push subscription was retrieved; in this case, the user will be
-    // marked as not subscribed
-    await context.subscriptionManager.registerSubscriptionWithOneSignal(rawPushSubscription);
-  }
-
-  /**
-   * Simulates a service worker event.
-   * @param eventName An event name like 'pushsubscriptionchange'.
-   */
-  static simulateEvent(eventName) {
-    (self as any).dispatchEvent(new ExtendableEvent(eventName));
   }
 
   /**

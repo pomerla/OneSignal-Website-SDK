@@ -132,24 +132,15 @@ export class TestEnvironment {
     };
   }
 
-  static async stubServiceWorkerEnvironment(config?: TestEnvironmentConfig): Promise<ServiceWorkerTestEnvironment> {
+  static stubServiceWorkerEnvironment(config?: TestEnvironmentConfig): Promise<ServiceWorkerTestEnvironment> {
     if (!config)
       config = {};
     // Service workers have a ServiceWorkerGlobalScope set to the 'self' variable, not window
     var serviceWorkerScope = new ServiceWorkerGlobalScope();
-    objectAssign(global, serviceWorkerScope);
-    global.skipWaiting = serviceWorkerScope.skipWaiting;
-    global.addEventListener = serviceWorkerScope.addEventListener;
-    global.trigger = serviceWorkerScope.trigger;
-    global.self = global;
     global.fetch = fetch;
     global.location = config.url ? config.url : new URL('https://localhost:3001/webpush/sandbox?https=1');
-    // global.OneSignal = new ServiceWorker({
-    //   databaseName: Random.getRandomString(6)
-    // });
-    // global.OneSignal.config = config.initOptions ? config.initOptions : {};
-    // global.OneSignal.initialized = true;
-    // global.OneSignal.getNotifications = () => global.self.registration.notifications;
+    Object.assign(global, serviceWorkerScope);
+    global.self = global;
     return global;
   }
 
