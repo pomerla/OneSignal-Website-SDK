@@ -17,7 +17,7 @@ const VAPID_PUBLIC_KEY_2 = "BLh-Qi0yJanQKiwICfQq25-Ei_ldA_M2egYPg4atuM-d8etfKivG
 
 declare var self: ServiceWorkerGlobalScope;
 
-test.only(`dispatching a mock pushsubscriptionchange event is received`, async t => {
+test(`dispatching a mock pushsubscriptionchange event is received`, async t => {
   const appId = Uuid.generate();
   await TestEnvironment.initializeForServiceWorker({
     url: new URL(`https://site.com/service-worker.js?appId=${appId}`)
@@ -40,12 +40,12 @@ test(`called with an old and new subscription successfully updates the subscript
     url: new URL(`https://site.com/service-worker.js?appId=${appId}`)
   });
 
-  const mockSubscription1 = new PushManager().subscribe({
+  const mockSubscription1 = await new PushManager().subscribe({
     userVisibleOnly: true,
     applicationServerKey: <ArrayBuffer>base64ToUint8Array(VAPID_PUBLIC_KEY_1).buffer
   });
 
-  const mockSubscription2 = new PushManager().subscribe({
+  const mockSubscription2 = await new PushManager().subscribe({
     userVisibleOnly: true,
     applicationServerKey: <ArrayBuffer>base64ToUint8Array(VAPID_PUBLIC_KEY_2).buffer
   });
